@@ -38,6 +38,23 @@ public class PyConstantExpression extends PyInspection {
             if (condition instanceof PyBoolLiteralExpression) {
                 registerProblem(condition, "The condition is always " + ((PyBoolLiteralExpression) condition).getValue());
             }
+            if (condition instanceof PyBinaryExpression) {
+                int firstInt = Integer.parseInt(condition.getFirstChild().getText());
+                int secondInt = Integer.parseInt(condition.getLastChild().getText());
+                String operator = ((PyBinaryExpression) condition).getPsiOperator().getText();
+                if (operator == "==") {
+                    registerProblem(condition, "The condition is always " + (firstInt == secondInt));
+                }
+                if (operator == "!=") {
+                    registerProblem(condition, "The condition is always " + (firstInt != secondInt));
+                }
+                if (operator == "<") {
+                    registerProblem(condition, "The condition is always " + (firstInt < secondInt));
+                }
+                if (operator == ">") {
+                    registerProblem(condition, "The condition is always " + (firstInt > secondInt));
+                }
+            }
         }
     }
 }
