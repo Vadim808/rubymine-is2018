@@ -2,6 +2,7 @@ package com.jetbrains.python.inspection;
 
 import com.intellij.codeInspection.LocalInspectionToolSession;
 import com.intellij.codeInspection.ProblemsHolder;
+import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiElementVisitor;
 import com.jetbrains.python.inspections.PyInspection;
 import com.jetbrains.python.inspections.PyInspectionVisitor;
@@ -37,24 +38,96 @@ public class PyConstantExpression extends PyInspection {
             final PyExpression condition = pyIfPart.getCondition();
             if (condition instanceof PyBoolLiteralExpression) {
                 registerProblem(condition, "The condition is always " + ((PyBoolLiteralExpression) condition).getValue());
-            }
-            if (condition instanceof PyBinaryExpression) {
-                int firstInt = Integer.parseInt(condition.getFirstChild().getText());
-                int secondInt = Integer.parseInt(condition.getLastChild().getText());
-                String operator = ((PyBinaryExpression) condition).getPsiOperator().getText();
-                if (operator == "==") {
-                    registerProblem(condition, "The condition is always " + (firstInt == secondInt));
-                }
-                if (operator == "!=") {
-                    registerProblem(condition, "The condition is always " + (firstInt != secondInt));
-                }
-                if (operator == "<") {
-                    registerProblem(condition, "The condition is always " + (firstInt < secondInt));
-                }
-                if (operator == ">") {
-                    registerProblem(condition, "The condition is always " + (firstInt > secondInt));
+            } else {
+                int answer = type_definition(condition);
+                if (answer == 0) {
+                    registerProblem(condition, "The condition is always false");
+                } else {
+                    registerProblem(condition, "The condition is always true ");
                 }
             }
+        }
+
+        private int type_definition(PsiElement el) {
+            int answer;
+            if (el instanceof PyBinaryExpression) {
+                answer = descent(el);
+            } else if (el instanceof PyParenthesizedExpression) {
+                answer = type_definition(el.getFirstChild().getNextSibling());
+            } else if (el instanceof PyPrefixExpression) {
+                answer = type_definition(el.getFirstChild().getNextSibling());
+                if (answer == 1) {
+                    answer = 0;
+                } else {
+                    answer = 1;
+                }
+            } else {
+                answer = Integer.parseInt(el.getText());
+            }
+            return answer;
+        }
+
+        private int descent(PsiElement el) {
+            int leftChild, rightChild;
+            String operator;
+            leftChild = type_definition(el.getFirstChild());
+            rightChild = type_definition(el.getLastChild());
+            operator = ((PyBinaryExpression) el).getPsiOperator().getText();
+            if (operator.equals("==")) {
+                if (leftChild == rightChild) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+            if (operator.equals("!=")) {
+                if (leftChild != rightChild) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+            if (operator.equals("<")) {
+                if (leftChild < rightChild) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+            if (operator.equals(">")) {
+                if (leftChild > rightChild) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+            if (operator.equals("+")) {
+                return leftChild + rightChild;
+            }
+            if (operator.equals("-")) {
+                return leftChild - rightChild;
+            }
+            if (operator.equals("*")) {
+                return leftChild * rightChild;
+            }
+            if (operator.equals("/")) {
+                return leftChild / rightChild;
+            }
+            if (operator.equals("and")) {
+                if (leftChild == 1 && rightChild == 1) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+            if (operator.equals("or")) {
+                if (leftChild == 1 || rightChild == 1) {
+                    return 1;
+                } else {
+                    return 0;
+                }
+            }
+            return 0;
         }
     }
 }
